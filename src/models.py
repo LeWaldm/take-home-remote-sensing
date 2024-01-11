@@ -5,8 +5,8 @@ import torch
 from pytorch_lightning import LightningModule
 
 
-# implementation of simple U-net with 2 downsampling steps
 class UNet(nn.Module):
+    """ Simple U-Net with 12x96x96 expected input and 2 up/down-sample blocks"""
     def __init__(self):
         super().__init__()
 
@@ -63,22 +63,21 @@ class UNet(nn.Module):
         b1_up = self.block1_u(b1_up)
 
         # output dimension
-        return self.block_out(b1_up)
+        return self.block_out(b1_up).squeeze(dim=1)
     
 class Pl_wrapper(LightningModule):
+    """ Simple Pytorch-lightning wrapper for any pytorch model """
 
     def __init__(self, pytorch_model):
         super().__init__()
         self.model = pytorch_model
-        self.loss_fct = nn.CrossEntropyLoss()
+        self.loss_fct = nn.BCELoss()
+        self.sigm = nn.Sigmoid()
 
-    def training_step(self, dls, batch_idx):
-        loss = 0
-        for batch in dls:
-            s2, target, _ = batch
-            preds = self.model(s2)
-            loss += self.loss_fct(preds, target)
-        loss = loss / len(dls)
+    def training_step(self, batch, batch_idx):
+        s2, target, _ = batch
+        preds = self.model(s2)
+        loss = self.loss_fct(self.sigm(preds), target)
         self.log('train_loss', loss)
         return loss
     
