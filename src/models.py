@@ -12,41 +12,41 @@ class UNet(nn.Module):
 
         # downsample blocks
         self.block1 = nn.Sequential(
-            nn.Conv2d(12,64,3, padding='same'),
+            nn.Conv2d(12,16,3, padding='same'),
             nn.ReLU(),
-            nn.Conv2d(64,64,3, padding='same'),
+            nn.Conv2d(16,16,3, padding='same'),
             nn.ReLU(),
         )
-        self.down1 = nn.MaxPool2d(2) # 64x48x48
+        self.down1 = nn.MaxPool2d(2) # 16x48x48
         self.block2 = nn.Sequential(
-            nn.Conv2d(64,128,3, padding='same'),
+            nn.Conv2d(16,32,3, padding='same'),
             nn.ReLU(),
-            nn.Conv2d(128,128,3, padding='same'),
+            nn.Conv2d(32,32,3, padding='same'),
             nn.ReLU(),
         )
-        self.down2 = nn.MaxPool2d(2) # 128x24x24
+        self.down2 = nn.MaxPool2d(2) # 32x24x24
 
         self.block3 = nn.Sequential(
-            nn.Conv2d(128,128,3, padding='same'),
+            nn.Conv2d(32,32,3, padding='same'),
             nn.ReLU()
         )
 
         # upsample blocks
-        self.up2 = nn.Upsample(scale_factor=2) # 128x48x48
+        self.up2 = nn.Upsample(scale_factor=2) # 32x48x48
         self.block2_u = nn.Sequential(
-            nn.Conv2d(256,128,3, padding='same'),
+            nn.Conv2d(64,32,3, padding='same'),
             nn.ReLU(),
-            nn.Conv2d(128,64,3, padding='same'), 
+            nn.Conv2d(32,16,3, padding='same'), 
             nn.ReLU()
         )
-        self.up1 = nn.Upsample(scale_factor=2) # 64x96x96
+        self.up1 = nn.Upsample(scale_factor=2) # 16x96x96
         self.block1_u = nn.Sequential(
-            nn.Conv2d(128,64,3, padding='same'),
+            nn.Conv2d(32,16,3, padding='same'),
             nn.ReLU(),
-            nn.Conv2d(64,64,3, padding='same'), 
+            nn.Conv2d(16,16,3, padding='same'), 
             nn.ReLU()
         )
-        self.block_out = nn.Conv2d(64,1,1)
+        self.block_out = nn.Conv2d(16,1,1)
         self.float()
 
     def forward(self, x):

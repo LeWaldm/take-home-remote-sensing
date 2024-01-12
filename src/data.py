@@ -12,6 +12,15 @@ import numpy as np
 
 class Observation_dataset(Dataset):
     def __init__(self, data, sample_heigth=96, sample_width=96, only_river=False):
+        """ 
+        Args:
+            data [list of dicts]: list of observations, see e.g. data/data_dict
+            sample_height [int, optional]: height of the sampling box in pixel
+            sample_width [int, optional]: width of the sampling box in pixel
+            only_river [bool, optional]: whether to only pick samples that have
+                the left upper corner within a river.
+        """
+        
         super().__init__()
         data = deepcopy(data)
         self.sample_height = sample_heigth
@@ -20,7 +29,7 @@ class Observation_dataset(Dataset):
 
         # process data
         indices = [0]
-        for d in tqdm(data):
+        for d in tqdm(data, position=0, leave=True):
 
             # load data into RAM (not feasible for large data volumes)
             s2 = rasterio.open(d['uri_to_s2'])
@@ -48,7 +57,7 @@ class Observation_dataset(Dataset):
                 transform = s2.transform)
             d['data_classes'] = torch.from_numpy(mask).float()
 
-            # prepare uniform access
+            # prepare indexing over all observations
             if only_river:
                 shapes = []
                 for f in d['data_rivers']['features']:
@@ -84,12 +93,24 @@ class Observation_dataset(Dataset):
         self.data = data
 
     def __len__(self):
+        """ returns length of the dataset """
         return self._length
 
     def __getitem__(self, index, return_rgb=False):
-        # if index >= self._length:
-        #     raise ValueError(f'Index {index} out of bounds (max is {self._length})')
+        """ method for accessing samples
         
+        Args:
+            index [int]: within [0,self.__len__()] indexing the sample to retrieve
+            return_rgb [bool, optional]: whether to also return the rgb image
+                or only information necessary for training
+        
+        Returns:
+            s2 [torch.tensor]: sentinel-2 data of sample location
+            classes [torch.tensor]: 0-1 target mask of same size as s2
+            index [int]: index from Args for later identification of the sample
+            rgb [torch.tensor, optional]: rgb data of sample location
+        """
+
         # get correct indices
         obs_idx, idx_height, idx_width = self._idx2obsheightwidth(index)
         data = self.data[obs_idx]
@@ -109,6 +130,12 @@ class Observation_dataset(Dataset):
         return s2, classes, index
 
     def visualize_batch(self, idxs):
+        """ Visualize sample locations in whole observations. Only plots 
+        observations, that have a sample in idxs. 
+
+        Args:
+            idxs [iterable]: dataset indices of samples to plot 
+        """
 
         obs_idxs, idx_heights, idx_widths = [], [], []
         for i in idxs:
@@ -149,6 +176,20 @@ class Observation_dataset(Dataset):
                      [ul_h, ul_h+self.sample_height-1], **style)
 
     def _idx2obsheightwidth(self, index):
+        """ 
+        convert dataset index to index of observation and location (height, width) 
+        of top left corner of the samplebox 
+
+        Args:
+            index [int]: dataset index
+        
+        return:
+            obs_idx [int]: index of corresponding observation in self.data
+            idx_height [int]: height of upper left corner in corresponding 
+                              observation
+            idx_width [int]:  width of upper left corner in corresponding 
+                              observation
+        """
 
         obs_idx = (index >= self.indices[1:]).int().sum().int()
         loc_idx = index - self.indices[obs_idx]
@@ -163,4 +204,10 @@ class Observation_dataset(Dataset):
             idx_height = loc_idx // width
 
         return obs_idx, idx_height, idx_width
+
+    def to(self, device):
+        """ Move variables relevant for training to device """
+        for d in self.data:
+            d['data_s2'].to(device)
+            d['data_classes'].to(device)
         
